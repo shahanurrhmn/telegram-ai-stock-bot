@@ -4,137 +4,157 @@ import requests
 import feedparser
 from textblob import TextBlob
 from datetime import datetime
-import pandas as pd
+import random
 
-# ================== ENV ==================
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 
-# ================== TELEGRAM ==================
-def send_message(text):
+# ================= TELEGRAM =================
+def send(text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    payload = {
+    requests.post(url, data={
         "chat_id": CHAT_ID,
         "text": text,
         "disable_web_page_preview": True
-    }
-    requests.post(url, data=payload)
+    })
 
-# ================== NEWS & SENTIMENT ==================
-def get_news(query, limit=6):
+# ================= NEWS =================
+def get_news(query, limit=5):
     feed = feedparser.parse(
         f"https://news.google.com/rss/search?q={query}+india+stock"
     )
     return [e.title for e in feed.entries[:limit]]
 
-def sentiment_score(headlines):
+def sentiment(headlines):
     if not headlines:
         return 0
     return sum(TextBlob(h).sentiment.polarity for h in headlines) / len(headlines)
 
-def sentiment_label(score):
-    if score > 0.15:
-        return "Positive 🟢"
-    elif score < -0.15:
-        return "Negative 🔴"
+def sentiment_label(s):
+    if s > 0.15: return "Bullish 🟢"
+    if s < -0.15: return "Bearish 🔴"
     return "Neutral 🟡"
 
-# ================== MARKET SUMMARY ==================
-def market_summary():
-    nifty = yf.Ticker("^NSEI").history(period="1d")
-    sensex = yf.Ticker("^BSESN").history(period="1d")
-
-    msg = f"""📊 Indian Market AI Summary
-📅 {datetime.now().strftime('%d %b %Y')}
-
-NIFTY 50: {round(nifty['Close'].iloc[-1],2)} ({round(nifty['Close'].iloc[-1]-nifty['Open'].iloc[-1],2)})
-SENSEX: {round(sensex['Close'].iloc[-1],2)} ({round(sensex['Close'].iloc[-1]-sensex['Open'].iloc[-1],2)})
-
-📌 Sector Sentiment:
-"""
-
-    sectors = ["Power", "Defence", "IT", "Banking", "AI"]
-    for s in sectors:
-        score = sentiment_score(get_news(s))
-        msg += f"• {s}: {sentiment_label(score)}\n"
-
-    msg += "\n⚠ Educational AI analysis only. Not SEBI registered advice."
-    return msg
-
-# ================== MULTIBAGGER SCAN ==================
-def multibagger_scan():
-    stocks = {
-        "TATA POWER": "TATAPOWER.NS",
-        "IREDA": "IREDA.NS",
-        "RVNL": "RVNL.NS",
-        "COCHIN SHIP": "COCHINSHIP.NS",
-        "BHEL": "BHEL.NS"
-    }
-
-    msg = "🚀 AI Multibagger Radar\n\n"
-    for name, symbol in stocks.items():
-        data = yf.Ticker(symbol).history(period="6mo")
-        if len(data) < 50:
-            continue
-        growth = ((data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0]) * 100
-        if growth > 25:
-            msg += f"• {name}: +{round(growth,1)}% 📈\n"
-
-    return msg + "\n(High momentum stocks, not buy advice)"
-
-# ================== STOCK RATING ==================
+# ================= STOCK RATING =================
 def rate_stock(symbol, name):
     data = yf.Ticker(symbol).history(period="1y")
     if data.empty:
         return None
 
-    price_score = min(5, ((data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0]) * 10)
-    news_score = sentiment_score(get_news(name)) * 5
-    rating = round(min(10, max(1, price_score + news_score)), 1)
+    price_growth = (data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0]
+    news_score = sentiment(get_news(name))
+    rating = round(min(10, max(1, (price_growth * 10) + (news_score * 5))), 1)
+    return rating
 
-    return f"⭐ {name} Rating: {rating}/10"
+# ================= SECTORS =================
+SECTORS = {
+    "Power": ["TATAPOWER.NS", "NTPC.NS"],
+    "Defence": ["HAL.NS", "BEL.NS"],
+    "IT": ["INFY.NS", "TCS.NS"],
+    "Banking": ["HDFCBANK.NS", "SBIN.NS"],
+    "Infra": ["L&T.NS", "RVNL.NS"]
+}
 
-def stock_ratings():
-    stocks = {
+# ================= STOCK OF THE DAY =================
+def stock_of_the_day():
+    candidates = {
         "TATA POWER": "TATAPOWER.NS",
-        "HDFC BANK": "HDFCBANK.NS",
-        "INFOSYS": "INFY.NS",
-        "RVNL": "RVNL.NS"
+        "HAL": "HAL.NS",
+        "BEL": "BEL.NS",
+        "RVNL": "RVNL.NS",
+        "NTPC": "NTPC.NS"
     }
 
-    msg = "📈 AI Stock Ratings\n\n"
-    for name, sym in stocks.items():
-        r = rate_stock(sym, name)
-        if r:
-            msg += f"{r}\n"
+    best = None
+    best_score = -1
 
-    return msg
+    for name, sym in candidates.items():
+        s = sentiment(get_news(name))
+        if s > best_score:
+            best_score = s
+            best = (name, sym, s)
 
-# ================== WEEKLY REPORT ==================
-def weekly_report():
-    return f"""📅 Weekly AI Market Outlook
+    if not best:
+        return
+
+    name, sym, score = best
+    rating = rate_stock(sym, name)
+    news = get_news(name, 2)
+
+    msg = f"""🌅 STOCK OF THE DAY (AI Pick)
+📅 {datetime.now().strftime('%d %b %Y')}
+
+📌 {name}
+Rating: ⭐ {rating}/10
+Trend: {sentiment_label(score)}
+
+Why Bullish Today?
+• Positive news sentiment
+• Sector momentum
+• Market participation
+
+Top News:
+• {news[0] if news else "No major negative news"}
+
+⚠ Educational AI analysis only
+"""
+    send(msg)
+
+# ================= MARKET CLOSE REPORT =================
+def market_report():
+    nifty = yf.Ticker("^NSEI").history(period="1d")
+    sensex = yf.Ticker("^BSESN").history(period="1d")
+
+    msg = f"""📊 INDIAN MARKET AI REPORT
+📅 {datetime.now().strftime('%d %b %Y')}
+
+NIFTY 50: {round(nifty['Close'].iloc[-1],2)} ({round(nifty['Close'].iloc[-1]-nifty['Open'].iloc[-1],2)})
+SENSEX: {round(sensex['Close'].iloc[-1],2)} ({round(sensex['Close'].iloc[-1]-sensex['Open'].iloc[-1],2)})
+
+🏭 SECTOR ANALYSIS
+"""
+
+    for sector, stocks in SECTORS.items():
+        sector_sent = sentiment(get_news(sector))
+        msg += f"\n{sector}: {sentiment_label(sector_sent)}\n"
+        for sym in stocks:
+            name = sym.replace(".NS","")
+            r = rate_stock(sym, name)
+            if r:
+                msg += f"• {name}: ⭐ {r}/10\n"
+
+    msg += "\n⚠ Educational AI analysis only. Not SEBI advice."
+    send(msg)
+
+# ================= WEEKLY =================
+def weekly_outlook():
+    send("""📅 WEEKLY AI OUTLOOK
 
 Best Sectors:
 • Defence 🟢
-• Banking 🟢
+• Infra 🟢
 
-Weak Sector:
-• IT 🔴
+Avoid:
+• Weak IT momentum
 
 Strategy:
-• Focus on PSU + Infra
-• Avoid high valuation tech stocks
+• Focus on PSU + Capex themes
+• Avoid overvalued stocks
+""")
 
-⚠ Long-term investors only
-"""
+# ================= RUN =================
+now = datetime.now()
+weekday = now.weekday()
+hour = now.hour
 
-# ================== RUN ==================
-today = datetime.now().weekday()
+# 9 AM Stock of the Day
+if hour == 9:
+    stock_of_the_day()
 
-send_message(market_summary())
-send_message(multibagger_scan())
-send_message(stock_ratings())
+# Market close
+if hour == 15:
+    market_report()
 
-# Sunday weekly report
-if today == 6:
-    send_message(weekly_report())
+# Sunday weekly
+if weekday == 6 and hour == 9:
+    weekly_outlook()
