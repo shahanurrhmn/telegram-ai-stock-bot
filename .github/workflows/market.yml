@@ -1,10 +1,22 @@
-name: AI Stock Bot
+name: Advanced AI Stock Broadcast Bot
 
 on:
   workflow_dispatch:
   schedule:
-    # Runs Monday–Friday at 3:30 PM IST
+    # =========================
+    # MORNING: Stock of the Day (9:00 AM IST)
+    # =========================
+    - cron: '30 3 * * 1-5'
+
+    # =========================
+    # MARKET CLOSE: Full AI Market & Sector Report (3:30 PM IST)
+    # =========================
     - cron: '0 10 * * 1-5'
+
+    # =========================
+    # WEEKLY OUTLOOK: Sunday 9:00 AM IST
+    # =========================
+    - cron: '30 3 * * 0'
 
 jobs:
   run-bot:
@@ -22,7 +34,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run bot
+      - name: Run AI Broadcast Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
