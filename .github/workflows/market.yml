@@ -1,0 +1,26 @@
+name: AI Trading Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    # हर 1 घंटे में run होगा
+    - cron: '0 * * * *'
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - run: pip install yfinance pandas requests
+
+      - name: Run Bot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python bot.py
