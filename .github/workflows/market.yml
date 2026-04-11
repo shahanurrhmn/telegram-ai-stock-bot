@@ -3,7 +3,6 @@ name: AI Trading Bot
 on:
   workflow_dispatch:
   schedule:
-    # हर 1 घंटे में run होगा
     - cron: '0 * * * *'
 
 jobs:
