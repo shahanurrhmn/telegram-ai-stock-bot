@@ -2,97 +2,152 @@ import os
 import yfinance as yf
 import requests
 from datetime import datetime
-import pandas as pd
+import json
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 
+CACHE_FILE = "cache.json"
+
 # ================= TELEGRAM =================
 def send(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": msg
-    })
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
-# ================= STOCK LIST =================
+# ================= CACHE =================
+def load_cache():
+    if not os.path.exists(CACHE_FILE):
+        return {"signals": [], "performance": {"win": 0, "loss": 0}}
+    return json.load(open(CACHE_FILE))
+
+def save_cache(data):
+    json.dump(data, open(CACHE_FILE, "w"))
+
+# ================= STOCKS =================
 STOCKS = [
     "RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS",
     "ICICIBANK.NS","SBIN.NS","ITC.NS","TATAPOWER.NS",
     "NTPC.NS","HAL.NS","BEL.NS","RVNL.NS"
 ]
 
-# ================= BREAKOUT =================
-def breakout_scan():
-    msg = "📈 BREAKOUT ALERTS\n\n"
+# ================= TRADE SIGNAL =================
+def trade_signals(cache):
+    msg = "🎯 AI TRADE SIGNALS\n\n"
+    found = False
 
     for stock in STOCKS:
-        df = yf.Ticker(stock).history(period="1mo")
+        df = yf.Ticker(stock).history(period="10d")
 
-        if len(df) < 20:
+        if len(df) < 5:
             continue
 
-        high = df['High'].rolling(20).max().iloc[-2]
-        today = df['Close'].iloc[-1]
+        close = df['Close']
+        change = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
+        trend = close.iloc[-1] - close.iloc[-5]
+        vol = close.pct_change().std()
 
-        volume_avg = df['Volume'].rolling(10).mean().iloc[-1]
-        volume_now = df['Volume'].iloc[-1]
+        entry = round(close.iloc[-1], 2)
 
-        if today > high and volume_now > 2 * volume_avg:
-            msg += f"🔥 {stock.replace('.NS','')} breakout\n"
+        # BUY
+        if change > 0.02 and trend > 0:
+            target = round(entry * 1.02, 2)
+            stop = round(entry * 0.98, 2)
 
-    if msg.strip() != "📈 BREAKOUT ALERTS":
+            confidence = min(90, int((change * 1000)))
+            risk = "Low 🟢" if vol < 0.015 else "Medium 🟡"
+
+            cache["signals"].append({
+                "stock": stock,
+                "type": "BUY",
+                "entry": entry,
+                "target": target,
+                "stop": stop
+            })
+
+            msg += f"""📈 BUY: {stock.replace('.NS','')}
+Entry: {entry}
+Target: {target}
+Stoploss: {stop}
+Confidence: {confidence}%
+Risk: {risk}
+
+"""
+            found = True
+
+        # SELL
+        elif change < -0.02 and trend < 0:
+            target = round(entry * 0.98, 2)
+            stop = round(entry * 1.02, 2)
+
+            confidence = min(90, int(abs(change * 1000)))
+            risk = "High 🔴" if vol > 0.02 else "Medium 🟡"
+
+            cache["signals"].append({
+                "stock": stock,
+                "type": "SELL",
+                "entry": entry,
+                "target": target,
+                "stop": stop
+            })
+
+            msg += f"""📉 SELL: {stock.replace('.NS','')}
+Entry: {entry}
+Target: {target}
+Stoploss: {stop}
+Confidence: {confidence}%
+Risk: {risk}
+
+"""
+            found = True
+
+    if found:
         send(msg)
 
-# ================= AI PREDICTION =================
-def ai_prediction():
-    msg = "🧠 AI SHORT-TERM BIAS\n\n"
+# ================= PERFORMANCE TRACK =================
+def check_performance(cache):
+    if not cache["signals"]:
+        return
 
-    for stock in STOCKS:
-        df = yf.Ticker(stock).history(period="15d")
-
-        if len(df) < 10:
+    for s in cache["signals"]:
+        df = yf.Ticker(s["stock"]).history(period="2d")
+        if len(df) < 1:
             continue
 
-        trend = df['Close'].iloc[-1] - df['Close'].iloc[-5]
+        current = df['Close'].iloc[-1]
 
-        if trend > 0:
-            msg += f"{stock.replace('.NS','')}: Bullish 🟢\n"
-        else:
-            msg += f"{stock.replace('.NS','')}: Bearish 🔴\n"
+        if s["type"] == "BUY":
+            if current >= s["target"]:
+                cache["performance"]["win"] += 1
+            elif current <= s["stop"]:
+                cache["performance"]["loss"] += 1
 
-    send(msg)
+        if s["type"] == "SELL":
+            if current <= s["target"]:
+                cache["performance"]["win"] += 1
+            elif current >= s["stop"]:
+                cache["performance"]["loss"] += 1
 
-# ================= INTRADAY SIGNAL =================
-def intraday_signal():
-    msg = "💰 INTRADAY MOMENTUM\n\n"
+    cache["signals"] = []
 
-    for stock in STOCKS:
-        df = yf.Ticker(stock).history(period="5d")
+# ================= REPORT =================
+def performance_report(cache):
+    win = cache["performance"]["win"]
+    loss = cache["performance"]["loss"]
+    total = win + loss
 
-        if len(df) < 3:
-            continue
+    if total == 0:
+        return
 
-        change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+    acc = round((win / total) * 100, 2)
 
-        if abs(change) > 0.02:
-            msg += f"{stock.replace('.NS','')}: {round(change*100,2)}%\n"
+    msg = f"""📊 AI PERFORMANCE REPORT
 
-    send(msg)
+Total Trades: {total}
+Wins: {win}
+Loss: {loss}
+Accuracy: {acc}%
 
-# ================= FII/DII PROXY =================
-def fii_dii_proxy():
-    nifty = yf.Ticker("^NSEI").history(period="5d")
-
-    change = nifty['Close'].iloc[-1] - nifty['Close'].iloc[-2]
-
-    msg = "🏦 MARKET FLOW (FII/DII PROXY)\n\n"
-
-    if change > 0:
-        msg += "FII Buying Pressure 🟢\n"
-    else:
-        msg += "FII Selling Pressure 🔴\n"
-
+"""
     send(msg)
 
 # ================= US MARKET =================
@@ -100,36 +155,31 @@ def us_market():
     nasdaq = yf.Ticker("^IXIC").history(period="1d")
     sp500 = yf.Ticker("^GSPC").history(period="1d")
 
-    nas_change = nasdaq['Close'].iloc[-1] - nasdaq['Open'].iloc[-1]
-    sp_change = sp500['Close'].iloc[-1] - sp500['Open'].iloc[-1]
+    nas = (nasdaq['Close'].iloc[-1] - nasdaq['Open'].iloc[-1]) / nasdaq['Open'].iloc[-1] * 100
+    sp = (sp500['Close'].iloc[-1] - sp500['Open'].iloc[-1]) / sp500['Open'].iloc[-1] * 100
 
-    msg = f"""🇺🇸 US MARKET UPDATE
+    send(f"""🇺🇸 US MARKET UPDATE
 
-NASDAQ: {round(nas_change,2)}
-S&P500: {round(sp_change,2)}
-
-Global sentiment indicator
-"""
-
-    send(msg)
+NASDAQ: {round(nas,2)}%
+S&P500: {round(sp,2)}%
+""")
 
 # ================= RUN =================
+cache = load_cache()
 now = datetime.now()
 hour = now.hour
 
-# Intraday hours (India market)
-if 9 <= hour <= 15:
-    breakout_scan()
-    intraday_signal()
+# Signals
+if 10 <= hour <= 14:
+    trade_signals(cache)
 
-# AI prediction (daily)
-if hour == 10:
-    ai_prediction()
-
-# FII/DII proxy (market close)
+# Performance check
 if hour == 15:
-    fii_dii_proxy()
+    check_performance(cache)
+    performance_report(cache)
 
-# US market (approx 7:45 PM IST)
-if hour == 19:
+# US market
+if 19 <= hour <= 20:
     us_market()
+
+save_cache(cache)
