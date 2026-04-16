@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: '3.10'
 
-      - run: pip install yfinance pandas requests
+      - run: pip install yfinance pandas requests feedparser
 
       - name: Run Bot
         env:
