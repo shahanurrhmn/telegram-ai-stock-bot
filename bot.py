@@ -3,6 +3,7 @@ import yfinance as yf
 import requests
 from datetime import datetime
 import json
+import feedparser
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -17,100 +18,140 @@ def send(msg):
 # ================= CACHE =================
 def load_cache():
     if not os.path.exists(CACHE_FILE):
-        return {"signals": [], "performance": {"win": 0, "loss": 0}}
+        return {"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 0}, "date": ""}
     return json.load(open(CACHE_FILE))
 
 def save_cache(data):
     json.dump(data, open(CACHE_FILE, "w"))
 
-# ================= STOCKS =================
-STOCKS = [
-    "RELIANCE.NS","TCS.NS","INFY.NS","HDFCBANK.NS",
-    "ICICIBANK.NS","SBIN.NS","ITC.NS","TATAPOWER.NS",
-    "NTPC.NS","HAL.NS","BEL.NS","RVNL.NS"
+def reset_daily(cache):
+    today = str(datetime.now().date())
+    if cache.get("date") != today:
+        cache["last_signals"] = {}
+        cache["date"] = today
+
+# ================= CORE STOCKS =================
+CORE_STOCKS = [
+"RELIANCE","TCS","INFY","HDFCBANK","ICICIBANK","SBIN",
+"LT","HCLTECH","AXISBANK","KOTAKBANK","ITC","BAJFINANCE",
+"ASIANPAINT","MARUTI","SUNPHARMA","TITAN","ULTRACEMCO",
+"NESTLEIND","WIPRO","POWERGRID","NTPC","ONGC","ADANIENT",
+"TATAMOTORS","JSWSTEEL","COALINDIA","HINDUNILVR"
 ]
 
-# ================= TRADE SIGNAL =================
+# ================= DYNAMIC STOCKS =================
+def get_dynamic_stocks():
+    try:
+        url = "https://query1.finance.yahoo.com/v1/finance/trending/IN"
+        data = requests.get(url).json()
+
+        stocks = []
+        for item in data['finance']['result'][0]['quotes']:
+            symbol = item['symbol']
+            if symbol.endswith(".NS"):
+                stocks.append(symbol.replace(".NS",""))
+
+        return stocks[:10]
+    except:
+        return []
+
+def get_all_stocks():
+    return list(set(CORE_STOCKS + get_dynamic_stocks()))
+
+# ================= HIGH-CONVICTION SIGNAL =================
 def trade_signals(cache):
-    msg = "🎯 AI TRADE SIGNALS\n\n"
+    msg = "🎯 HIGH CONVICTION SIGNALS\n\n"
     found = False
 
-    for stock in STOCKS:
-        df = yf.Ticker(stock).history(period="10d")
+    for stock in get_all_stocks():
+        df = yf.Ticker(stock + ".NS").history(period="1mo")
 
-        if len(df) < 5:
+        if len(df) < 20:
             continue
 
         close = df['Close']
+
+        ema20 = close.ewm(span=20).mean().iloc[-1]
+
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        rsi_val = rsi.iloc[-1]
+
         change = (close.iloc[-1] - close.iloc[-2]) / close.iloc[-2]
-        trend = close.iloc[-1] - close.iloc[-5]
-        vol = close.pct_change().std()
 
         entry = round(close.iloc[-1], 2)
 
-        # BUY
-        if change > 0.02 and trend > 0:
-            target = round(entry * 1.02, 2)
-            stop = round(entry * 0.98, 2)
+        signal_type = None
 
-            confidence = min(90, int((change * 1000)))
-            risk = "Low 🟢" if vol < 0.015 else "Medium 🟡"
+        if entry > ema20 and rsi_val > 60 and change > 0.015:
+            signal_type = "BUY"
+            target = round(entry * 1.04, 2)
+            stop = round(entry * 0.97, 2)
+            confidence = int(rsi_val)
+
+        elif entry < ema20 and rsi_val < 40 and change < -0.015:
+            signal_type = "SELL"
+            target = round(entry * 0.96, 2)
+            stop = round(entry * 1.03, 2)
+            confidence = int(100 - rsi_val)
+
+        if signal_type:
+            if cache["last_signals"].get(stock) == signal_type:
+                continue
+
+            cache["last_signals"][stock] = signal_type
 
             cache["signals"].append({
                 "stock": stock,
-                "type": "BUY",
+                "type": signal_type,
                 "entry": entry,
                 "target": target,
                 "stop": stop
             })
 
-            msg += f"""📈 BUY: {stock.replace('.NS','')}
+            msg += f"""📊 {signal_type}: {stock}
 Entry: {entry}
 Target: {target}
 Stoploss: {stop}
 Confidence: {confidence}%
-Risk: {risk}
-
-"""
-            found = True
-
-        # SELL
-        elif change < -0.02 and trend < 0:
-            target = round(entry * 0.98, 2)
-            stop = round(entry * 1.02, 2)
-
-            confidence = min(90, int(abs(change * 1000)))
-            risk = "High 🔴" if vol > 0.02 else "Medium 🟡"
-
-            cache["signals"].append({
-                "stock": stock,
-                "type": "SELL",
-                "entry": entry,
-                "target": target,
-                "stop": stop
-            })
-
-            msg += f"""📉 SELL: {stock.replace('.NS','')}
-Entry: {entry}
-Target: {target}
-Stoploss: {stop}
-Confidence: {confidence}%
-Risk: {risk}
 
 """
             found = True
 
     if found:
         send(msg)
+    else:
+        send("ℹ️ No high-conviction trades right now")
 
-# ================= PERFORMANCE TRACK =================
+# ================= BROKER =================
+def broker_calls():
+    feed = feedparser.parse("https://feeds.feedburner.com/ndtvprofit-latest")
+
+    msg = "📊 BROKER CONSENSUS\n\n"
+    found = False
+
+    for entry in feed.entries[:10]:
+        title = entry.title.lower()
+
+        for stock in get_all_stocks():
+            if stock.lower() in title and ("buy" in title or "target" in title):
+                msg += f"""🟢 {stock}
+{entry.title}
+
+"""
+                found = True
+
+    if found:
+        send(msg)
+
+# ================= PERFORMANCE =================
 def check_performance(cache):
-    if not cache["signals"]:
-        return
-
     for s in cache["signals"]:
-        df = yf.Ticker(s["stock"]).history(period="2d")
-        if len(df) < 1:
+        df = yf.Ticker(s["stock"] + ".NS").history(period="2d")
+        if df.empty:
             continue
 
         current = df['Close'].iloc[-1]
@@ -121,7 +162,7 @@ def check_performance(cache):
             elif current <= s["stop"]:
                 cache["performance"]["loss"] += 1
 
-        if s["type"] == "SELL":
+        elif s["type"] == "SELL":
             if current <= s["target"]:
                 cache["performance"]["win"] += 1
             elif current >= s["stop"]:
@@ -129,7 +170,6 @@ def check_performance(cache):
 
     cache["signals"] = []
 
-# ================= REPORT =================
 def performance_report(cache):
     win = cache["performance"]["win"]
     loss = cache["performance"]["loss"]
@@ -140,45 +180,48 @@ def performance_report(cache):
 
     acc = round((win / total) * 100, 2)
 
-    msg = f"""📊 AI PERFORMANCE REPORT
+    send(f"""📊 PERFORMANCE REPORT
 
-Total Trades: {total}
+Trades: {total}
 Wins: {win}
 Loss: {loss}
 Accuracy: {acc}%
-
-"""
-    send(msg)
+""")
 
 # ================= US MARKET =================
 def us_market():
-    nasdaq = yf.Ticker("^IXIC").history(period="1d")
-    sp500 = yf.Ticker("^GSPC").history(period="1d")
+    nas = yf.Ticker("^IXIC").history(period="1d")
+    sp = yf.Ticker("^GSPC").history(period="1d")
 
-    nas = (nasdaq['Close'].iloc[-1] - nasdaq['Open'].iloc[-1]) / nasdaq['Open'].iloc[-1] * 100
-    sp = (sp500['Close'].iloc[-1] - sp500['Open'].iloc[-1]) / sp500['Open'].iloc[-1] * 100
+    if nas.empty or sp.empty:
+        return
+
+    nas_change = (nas['Close'].iloc[-1] - nas['Open'].iloc[-1]) / nas['Open'].iloc[-1] * 100
+    sp_change = (sp['Close'].iloc[-1] - sp['Open'].iloc[-1]) / sp['Open'].iloc[-1] * 100
 
     send(f"""🇺🇸 US MARKET UPDATE
 
-NASDAQ: {round(nas,2)}%
-S&P500: {round(sp,2)}%
+NASDAQ: {round(nas_change,2)}%
+S&P500: {round(sp_change,2)}%
 """)
 
 # ================= RUN =================
 cache = load_cache()
+reset_daily(cache)
+
 now = datetime.now()
 hour = now.hour
 
-# Signals
 if 10 <= hour <= 14:
     trade_signals(cache)
 
-# Performance check
+if 11 <= hour <= 16:
+    broker_calls()
+
 if hour == 15:
     check_performance(cache)
     performance_report(cache)
 
-# US market
 if 19 <= hour <= 20:
     us_market()
 
