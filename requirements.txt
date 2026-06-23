@@ -4,5 +4,4 @@ requests
 pandas
 numpy
 tensorflow
-transformers
-torch
+nltk
