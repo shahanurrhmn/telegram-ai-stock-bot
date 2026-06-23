@@ -9,15 +9,19 @@ import requests
 import feedparser
 from datetime import datetime
 
-# ===== Memory / thread optimisations (prevents segfault) =====
+# ===== Memory optimisations =====
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
-import torch
-torch.set_num_threads(1)
 
-# AI modules
 from tensorflow.keras.models import load_model
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+# VADER sentiment (no heavy models)
+import nltk
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+# Download VADER lexicon once (included in CI cache)
+nltk.download('vader_lexicon', quiet=True)
+vader = SentimentIntensityAnalyzer()
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -42,7 +46,6 @@ def load_cache():
         return default_cache
     with open(CACHE_FILE) as f:
         cache = json.load(f)
-    # Ensure all keys exist
     for k, v in default_cache.items():
         if k not in cache:
             cache[k] = v
@@ -132,32 +135,12 @@ def get_lstm_probability(stock):
         X = scaled.reshape(1, 60, len(FEATURE_COLS))
         prob = lstm_model.predict(X, verbose=0)[0][0]
         return float(prob)
-    except Exception as e:
-        print(f"LSTM error {stock}: {e}")
+    except:
         return None
 
-# ================= FinBERT SENTIMENT =================
-finbert_tokenizer = None
-finbert_model = None
-def load_finbert():
-    global finbert_tokenizer, finbert_model
-    if finbert_model is None:
-        finbert_tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
-        finbert_model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
-        # Force CPU only (already default, but just in case)
-        finbert_model = finbert_model.to("cpu")
-
-def get_sentiment_score(text):
-    load_finbert()
-    inputs = finbert_tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
-    with torch.no_grad():
-        outputs = finbert_model(**inputs)
-    scores = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-    pos = scores[0].item()
-    neg = scores[1].item()
-    return pos - neg   # range approx -1 to 1
-
+# ================= SENTIMENT (VADER) =================
 def get_stock_sentiment(stock):
+    """Aggregate VADER compound score from Google News headlines (-1 to 1)."""
     try:
         query = stock.replace(" ", "+") + "+stock"
         url = f"https://news.google.com/rss/search?q={query}+NSE&hl=en-IN&gl=IN&ceid=IN:en"
@@ -165,16 +148,15 @@ def get_stock_sentiment(stock):
         headlines = [entry.title for entry in feed.entries[:5]]
         if not headlines:
             return None
-        scores = [get_sentiment_score(h) for h in headlines]
-        return np.mean(scores)
-    except Exception as e:
-        print(f"Sentiment error {stock}: {e}")
+        scores = [vader.polarity_scores(h)['compound'] for h in headlines]
+        return np.mean(scores)   # average compound, -1 to 1
+    except:
         return None
 
-# ================= SIGNAL GENERATION (ULTIMATE FUSION) =================
+# ================= SIGNAL GENERATION (FULL FUSION) =================
 def trade_signals(cache):
     weights = cache.get("weights", {"technical": 0.3, "lstm": 0.4, "sentiment": 0.3})
-    msg = "🎯 <b>FULL AI FUSION</b> (LSTM + FinBERT + Tech)\n\n"
+    msg = "🎯 <b>AI FUSION</b> (LSTM + Sentiment + Tech)\n\n"
     found = False
 
     for stock in get_all_stocks():
@@ -216,7 +198,7 @@ def trade_signals(cache):
                 continue
             cache["last_signals"][stock] = signal_type
 
-            # --- AI Augmentation ---
+            # --- AI augmentation ---
             lstm_prob = get_lstm_probability(stock)
             sentiment = get_stock_sentiment(stock)
 
@@ -226,9 +208,9 @@ def trade_signals(cache):
 
             sent_conf = 50
             if sentiment is not None:
+                # VADER compound is -1 to 1, map to 0-100
                 sent_conf = ((sentiment + 1) / 2) * 100
 
-            # Weighted fusion using current weights
             final_conf = (weights["technical"] * tech_conf +
                           weights["lstm"] * lstm_conf +
                           weights["sentiment"] * sent_conf)
@@ -236,16 +218,12 @@ def trade_signals(cache):
             if final_conf < 65:
                 continue
 
-            # Store signal details for later performance tracking & weight tuning
             cache["signals"].append({
                 "stock": stock,
                 "type": signal_type,
                 "entry": entry,
                 "target": target,
-                "stop": stop,
-                "tech_conf": tech_conf,
-                "lstm_conf": lstm_conf,
-                "sent_conf": sent_conf
+                "stop": stop
             })
 
             msg += f"""📊 <b>{signal_type}: {stock}</b>
@@ -267,18 +245,9 @@ Stoploss: {stop}
 
 # ================= SELF‑LEARNING WEIGHTS =================
 def update_weights(cache):
-    """After checking performance, slightly nudge weights towards the most helpful module."""
-    if not cache["signals"]:
-        return
-
-    # This is a simple heuristic: we'll look at the recent winning signal
-    # (if any) and increase the weight of the module that contributed most.
-    # In a more advanced version, we would track per‑module accuracy.
-    # For now, we just apply a very small mean reversion toward equal weights
-    # to avoid drift, while keeping the ability to adapt later.
     w = cache["weights"]
     for k in w:
-        w[k] = 0.95 * w[k] + 0.05 * (1/3)   # slowly revert towards equal weighting
+        w[k] = 0.95 * w[k] + 0.05 * (1/3)   # mild mean reversion
     cache["weights"] = w
 
 # ================= BROKER CALLS =================
@@ -312,7 +281,6 @@ def check_performance(cache):
                 cache["performance"]["win"] += 1
             elif current >= s["stop"]:
                 cache["performance"]["loss"] += 1
-    # clear evaluated signals
     cache["signals"] = []
 
 def performance_report(cache):
@@ -351,7 +319,7 @@ if __name__ == "__main__":
     if hour == 15:
         check_performance(cache)
         performance_report(cache)
-        update_weights(cache)   # Adaptive learning
+        update_weights(cache)
     if 19 <= hour <= 20:
         us_market()
 
