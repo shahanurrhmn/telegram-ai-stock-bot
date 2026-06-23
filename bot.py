@@ -9,10 +9,8 @@ import requests
 import feedparser
 from datetime import datetime
 
-# 🤖 AI modules
+# AI module – only LSTM (no transformers)
 from tensorflow.keras.models import load_model
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -118,41 +116,9 @@ def get_lstm_probability(stock):
     except:
         return None
 
-# ================= FinBERT SENTIMENT =================
-finbert_tokenizer = None
-finbert_model = None
-def load_finbert():
-    global finbert_tokenizer, finbert_model
-    if finbert_model is None:
-        finbert_tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
-        finbert_model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
-
-def get_sentiment_score(text):
-    load_finbert()
-    inputs = finbert_tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
-    with torch.no_grad():
-        outputs = finbert_model(**inputs)
-    scores = torch.nn.functional.softmax(outputs.logits, dim=1)[0]
-    pos = scores[0].item()
-    neg = scores[1].item()
-    return pos - neg
-
-def get_stock_sentiment(stock):
-    try:
-        query = stock.replace(" ", "+") + "+stock"
-        url = f"https://news.google.com/rss/search?q={query}+NSE&hl=en-IN&gl=IN&ceid=IN:en"
-        feed = feedparser.parse(url)
-        headlines = [entry.title for entry in feed.entries[:5]]
-        if not headlines:
-            return None
-        scores = [get_sentiment_score(h) for h in headlines]
-        return np.mean(scores)
-    except:
-        return None
-
-# ================= SIGNAL GENERATION =================
+# ================= SIGNAL GENERATION (LSTM + Tech only) =================
 def trade_signals(cache):
-    msg = "🎯 <b>AI FUSION SIGNALS</b> (LSTM + FinBERT + Tech)\n\n"
+    msg = "🎯 <b>AI SIGNALS</b> (LSTM + Technical)\n\n"
     found = False
 
     for stock in get_all_stocks():
@@ -194,19 +160,14 @@ def trade_signals(cache):
                 continue
             cache["last_signals"][stock] = signal_type
 
-            # --- AI augmentation ---
+            # --- AI: LSTM only ---
             lstm_prob = get_lstm_probability(stock)
-            sentiment = get_stock_sentiment(stock)
-
             lstm_conf = 50
             if lstm_prob is not None:
                 lstm_conf = lstm_prob * 100 if signal_type == "BUY" else (1 - lstm_prob) * 100
 
-            sent_conf = 50
-            if sentiment is not None:
-                sent_conf = ((sentiment + 1) / 2) * 100
-
-            final_conf = 0.3 * tech_conf + 0.4 * lstm_conf + 0.3 * sent_conf
+            # Simple fusion (no sentiment)
+            final_conf = 0.4 * tech_conf + 0.6 * lstm_conf   # give more weight to LSTM
             if final_conf < 65:
                 continue
 
@@ -223,7 +184,7 @@ Entry: {entry}
 Target: {target}
 Stoploss: {stop}
 🤖 AI Confidence: {int(final_conf)}%
-<code>Tech:{tech_conf:.0f} LSTM:{lstm_conf:.0f} Sent:{sent_conf:.0f}</code>
+<code>Tech:{tech_conf:.0f} LSTM:{lstm_conf:.0f}</code>
 
 """
             found = True
@@ -235,7 +196,7 @@ Stoploss: {stop}
     else:
         send("ℹ️ No AI‑conviction trades right now")
 
-# ================= BROKER CALLS =================
+# ================= BROKER CALLS (unchanged) =================
 def broker_calls():
     feed = feedparser.parse("https://feeds.feedburner.com/ndtvprofit-latest")
     msg = "📊 BROKER CONSENSUS\n\n"
