@@ -2,10 +2,10 @@ name: AI Stock Bot
 
 on:
   schedule:
-    - cron: '45 3 * * 1-5'
-    - cron: '30 5 * * 1-5'
-    - cron: '30 9 * * 1-5'
-    - cron: '30 13 * * 1-5'
+    - cron: '45 3 * * 1-5'    # 9:15 AM IST
+    - cron: '30 5 * * 1-5'    # 11:00 AM IST
+    - cron: '30 9 * * 1-5'    # 3:00 PM IST
+    - cron: '0 14 * * 1-5'    # 7:30 PM IST (US market)
   workflow_dispatch:
 
 permissions:
@@ -29,16 +29,18 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          TZ: Asia/Kolkata          # <--- THIS FIXES THE TIME ZONE
         run: python bot.py
 
       - name: Commit cache changes
         env:
           GH_TOKEN: ${{ github.token }}
+          TZ: Asia/Kolkata
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add cache.json
           if ! git diff --cached --quiet; then
-            git commit -m "update cache and weights"
+            git commit -m "update cache"
             git push
           fi
