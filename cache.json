@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 0}, "date": "2026-06-24", "weights": {"technical": 0.3, "lstm": 0.4, "sentiment": 0.3}}
+{"last_signals": {"HDFCBANK": "BUY", "BAJFINANCE": "BUY", "ICICIBANK": "BUY", "ONGC": "SELL", "AXISBANK": "BUY"}, "signals": [{"stock": "AXISBANK", "type": "BUY", "entry": 1384.5, "target": 1439.88, "stop": 1342.96}], "performance": {"win": 0, "loss": 0}, "date": "2026-06-24", "weights": {"technical": 0.3, "lstm": 0.4, "sentiment": 0.3}}
