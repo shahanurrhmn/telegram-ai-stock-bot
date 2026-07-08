@@ -1,1 +1,1 @@
-{"last_signals": {"TITAN": "BUY", "COALINDIA": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-07", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
+{"last_signals": {"ITC": "SELL", "TITAN": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-08", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
