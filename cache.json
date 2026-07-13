@@ -1,1 +1,1 @@
-{"last_signals": {"ICICIBANK": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-10", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
+{"last_signals": {"WIPRO": "BUY", "TCS": "BUY", "HCLTECH": "BUY", "INFY": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-13", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
