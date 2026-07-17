@@ -1,1 +1,1 @@
-{"last_signals": {"TITAN": "BUY", "HCLTECH": "BUY", "BAJFINANCE": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-16", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
+{"last_signals": {"TCS": "BUY", "HCLTECH": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-17", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
