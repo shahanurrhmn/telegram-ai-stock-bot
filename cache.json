@@ -1,1 +1,1 @@
-{"last_signals": {"JSWSTEEL": "BUY", "MARUTI": "SELL", "AXISBANK": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-20", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
+{"last_signals": {"MARUTI": "SELL", "NESTLEIND": "BUY", "JSWSTEEL": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-21", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
