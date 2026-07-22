@@ -1,1 +1,1 @@
-{"last_signals": {"NESTLEIND": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-22", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
+{"last_signals": {"NESTLEIND": "BUY", "KOTAKBANK": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-07-22", "weights": {"technical": 0.3047541666666666, "lstm": 0.3904916666666666, "sentiment": 0.3047541666666666}}
