@@ -1,1 +1,1 @@
-{"last_signals": {"TITAN": "BUY"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-10", "weights": {"technical": 0.30618312499999994, "lstm": 0.38763374999999994, "sentiment": 0.30618312499999994}}
+{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-11", "weights": {"technical": 0.30618312499999994, "lstm": 0.38763374999999994, "sentiment": 0.30618312499999994}}
