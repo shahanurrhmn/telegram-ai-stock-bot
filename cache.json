@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-17", "weights": {"technical": 0.3075406354166666, "lstm": 0.3849187291666666, "sentiment": 0.3075406354166666}}
+{"last_signals": {"ITC": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-17", "weights": {"technical": 0.3075406354166666, "lstm": 0.3849187291666666, "sentiment": 0.3075406354166666}}
