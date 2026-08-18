@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-18", "weights": {"technical": 0.30883027031249993, "lstm": 0.3823394593749999, "sentiment": 0.30883027031249993}}
+{"last_signals": {"ASIANPAINT": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-18", "weights": {"technical": 0.30883027031249993, "lstm": 0.3823394593749999, "sentiment": 0.30883027031249993}}
