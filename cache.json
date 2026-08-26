@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-26", "weights": {"technical": 0.3153213304112453, "lstm": 0.36935733917750896, "sentiment": 0.3153213304112453}}
+{"last_signals": {"KOTAKBANK": "BUY", "INFY": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-08-26", "weights": {"technical": 0.3153213304112453, "lstm": 0.36935733917750896, "sentiment": 0.3153213304112453}}
