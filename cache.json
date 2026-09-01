@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-01", "weights": {"technical": 0.3170775006961489, "lstm": 0.3658449986077018, "sentiment": 0.3170775006961489}}
+{"last_signals": {"ULTRACEMCO": "SELL", "MARUTI": "SELL", "ASIANPAINT": "SELL", "NESTLEIND": "SELL", "SBIN": "SELL", "BAJFINANCE": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-01", "weights": {"technical": 0.3170775006961489, "lstm": 0.3658449986077018, "sentiment": 0.3170775006961489}}
