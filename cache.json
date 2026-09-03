@@ -1,1 +1,1 @@
-{"last_signals": {"MARUTI": "SELL", "ASIANPAINT": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-02", "weights": {"technical": 0.31866244437827435, "lstm": 0.36267511124345087, "sentiment": 0.31866244437827435}}
+{"last_signals": {"ASIANPAINT": "SELL"}, "signals": [{"stock": "ASIANPAINT", "type": "SELL", "entry": 2519.9, "target": 2419.1, "stop": 2595.5}], "performance": {"win": 0, "loss": 1}, "date": "2026-09-03", "weights": {"technical": 0.31866244437827435, "lstm": 0.36267511124345087, "sentiment": 0.31866244437827435}}
