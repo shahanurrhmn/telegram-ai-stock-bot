@@ -1,1 +1,1 @@
-{"last_signals": {"HCLTECH": "SELL", "POWERGRID": "BUY", "SUNPHARMA": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-10", "weights": {"technical": 0.32198127912372926, "lstm": 0.3560374417525408, "sentiment": 0.32198127912372926}}
+{"last_signals": {"MARUTI": "SELL", "JSWSTEEL": "SELL", "SBIN": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-11", "weights": {"technical": 0.32198127912372926, "lstm": 0.3560374417525408, "sentiment": 0.32198127912372926}}
