@@ -1,1 +1,1 @@
-{"last_signals": {"INFY": "SELL", "WIPRO": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-16", "weights": {"technical": 0.323600365855374, "lstm": 0.35279926828925123, "sentiment": 0.323600365855374}}
+{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-09-17", "weights": {"technical": 0.323600365855374, "lstm": 0.35279926828925123, "sentiment": 0.323600365855374}}
