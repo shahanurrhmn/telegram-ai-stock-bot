@@ -1,1 +1,1 @@
-{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-10-03", "weights": {"technical": 0.3277972205337461, "lstm": 0.34440555893250685, "sentiment": 0.3277972205337461}}
+{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-10-05", "weights": {"technical": 0.3277972205337461, "lstm": 0.34440555893250685, "sentiment": 0.3277972205337461}}
