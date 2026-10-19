@@ -1,1 +1,1 @@
-{"last_signals": {"NESTLEIND": "SELL", "ULTRACEMCO": "SELL", "NTPC": "SELL"}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-10-19", "weights": {"technical": 0.3285868086217872, "lstm": 0.3428263827564247, "sentiment": 0.3285868086217872}}
+{"last_signals": {}, "signals": [], "performance": {"win": 0, "loss": 1}, "date": "2026-10-20", "weights": {"technical": 0.3285868086217872, "lstm": 0.3428263827564247, "sentiment": 0.3285868086217872}}
